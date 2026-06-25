@@ -9,6 +9,8 @@ export interface InvestigationState {
   currentCheckpointIndex: number;
   currentCheckpoint: string;
   isScanning: boolean;
+  dnsResult: import("@/types/api/dns").DNSLookupResponse | null;
+  error: string | null;
 }
 
 export interface InvestigationActions {

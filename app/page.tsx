@@ -31,7 +31,11 @@ export default function HomePage() {
         )}
 
         {state.viewState === "notesRendered" && (
-          <InvestigationNotes domain={state.domain} />
+          <InvestigationNotes
+            domain={state.domain}
+            dnsResult={state.dnsResult}
+            error={state.error}
+          />
         )}
       </div>
     </main>

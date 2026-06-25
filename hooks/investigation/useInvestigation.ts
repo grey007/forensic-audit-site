@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CHECKPOINTS } from "@/lib/constants";
+import { lookupDNS } from "@/services/api/investigationClient";
+import type { DNSLookupResponse } from "@/types/api/dns";
 import type {
   InvestigationState,
   UseInvestigationResult,
@@ -18,6 +20,8 @@ export function useInvestigation(): UseInvestigationResult {
     currentCheckpointIndex: 0,
     currentCheckpoint: CHECKPOINTS[0],
     isScanning: false,
+    dnsResult: null,
+    error: null,
   });
 
   const checkpointIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
@@ -26,6 +30,9 @@ export function useInvestigation(): UseInvestigationResult {
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  const lookupCompletionRef = useRef<boolean>(false);
+  const timerCompletionRef = useRef<boolean>(false);
 
   const clearTimers = useCallback((): void => {
     if (checkpointIntervalRef.current !== null) {
@@ -37,29 +44,79 @@ export function useInvestigation(): UseInvestigationResult {
       clearTimeout(completionTimeoutRef.current);
       completionTimeoutRef.current = null;
     }
+
+    lookupCompletionRef.current = false;
+    timerCompletionRef.current = false;
   }, []);
 
   const setDomain = useCallback((domain: string): void => {
     setState((previous) => ({
       ...previous,
       domain,
+      error: null,
     }));
   }, []);
 
   const resetInvestigation = useCallback((): void => {
     clearTimers();
 
-    setState((previous) => ({
-      ...previous,
+    setState(() => ({
       viewState: "idle",
+      domain: "",
       currentCheckpointIndex: 0,
       currentCheckpoint: CHECKPOINTS[0],
       isScanning: false,
+      dnsResult: null,
+      error: null,
     }));
   }, [clearTimers]);
 
+  const maybeCompleteInvestigation = useCallback((): void => {
+    if (lookupCompletionRef.current && timerCompletionRef.current) {
+      setState((previous) => ({
+        ...previous,
+        viewState: "notesRendered",
+        isScanning: false,
+      }));
+    }
+  }, []);
+
+  const setInvestigationResult = useCallback(
+    (dnsResult: DNSLookupResponse | null, error: string | null): void => {
+      lookupCompletionRef.current = true;
+
+      setState((previous) => ({
+        ...previous,
+        dnsResult,
+        error,
+      }));
+
+      maybeCompleteInvestigation();
+    },
+    [maybeCompleteInvestigation],
+  );
+
+  const performDnsLookup = useCallback(
+    async (domain: string): Promise<void> => {
+      try {
+        const result = await lookupDNS(domain);
+        setInvestigationResult(result, null);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "DNS lookup failed unexpectedly.";
+
+        setInvestigationResult(null, message);
+      }
+    },
+    [setInvestigationResult],
+  );
+
   const startInvestigation = useCallback((): void => {
     clearTimers();
+
+    const normalizedDomain = state.domain.trim();
 
     setState((previous) => ({
       ...previous,
@@ -67,6 +124,8 @@ export function useInvestigation(): UseInvestigationResult {
       currentCheckpointIndex: 0,
       currentCheckpoint: CHECKPOINTS[0],
       isScanning: true,
+      dnsResult: null,
+      error: null,
     }));
 
     checkpointIntervalRef.current = setInterval(() => {
@@ -83,15 +142,21 @@ export function useInvestigation(): UseInvestigationResult {
     }, CHECKPOINT_INTERVAL_MS);
 
     completionTimeoutRef.current = setTimeout(() => {
-      clearTimers();
+      timerCompletionRef.current = true;
+      maybeCompleteInvestigation();
+    }, INVESTIGATION_DURATION_MS);
 
+    if (normalizedDomain.length > 0) {
+      void performDnsLookup(normalizedDomain);
+    } else {
+      lookupCompletionRef.current = true;
       setState((previous) => ({
         ...previous,
-        viewState: "notesRendered",
-        isScanning: false,
+        error: "Domain is required.",
       }));
-    }, INVESTIGATION_DURATION_MS);
-  }, [clearTimers]);
+      maybeCompleteInvestigation();
+    }
+  }, [clearTimers, maybeCompleteInvestigation, performDnsLookup, state.domain]);
 
   useEffect(() => {
     return () => {

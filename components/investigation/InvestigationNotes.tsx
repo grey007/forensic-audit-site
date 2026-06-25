@@ -1,44 +1,40 @@
 import { OpenCaseButton } from "./OpenCaseButton";
+import type { DNSLookupResponse } from "@/types/api/dns";
 
 interface InvestigationNotesProps {
   domain: string;
+  dnsResult: DNSLookupResponse | null;
+  error: string | null;
 }
 
-const OBSERVATIONS = [
-  {
-    title: "Observation 1",
-    content: [
-      "DNS resolution completed successfully.",
-      "Infrastructure is publicly reachable without abnormal lookup latency.",
-    ],
-  },
-  {
-    title: "Observation 2",
-    content: [
-      "MX records appear to reference a managed email provider.",
-      "Email trust infrastructure appears stable.",
-      "SPF/DKIM alignment requires deeper verification.",
-    ],
-  },
-  {
-    title: "Observation 3",
-    content: [
-      "Name server delegation appears internally consistent.",
-      "No immediate evidence of fragmented authority.",
-    ],
-  },
-  {
-    title: "Observation 4",
-    content: [
-      "Initial infrastructure fingerprint suggests a modern hosting environment.",
-      "Additional artifact correlation is required before attribution.",
-    ],
-  },
+const RECORD_TYPES: Array<{
+  type: keyof DNSLookupResponse["records"];
+  label: string;
+}> = [
+  { type: "A", label: "A Records" },
+  { type: "AAAA", label: "AAAA Records" },
+  { type: "MX", label: "MX Records" },
+  { type: "NS", label: "Nameservers" },
+  { type: "TXT", label: "TXT Records" },
 ];
+
+function formatRecord(record: { name: string; data: string; ttl: number }) {
+  return `${record.name} — ${record.data} (TTL ${record.ttl})`;
+}
 
 export function InvestigationNotes({
   domain,
+  dnsResult,
+  error,
 }: InvestigationNotesProps) {
+  const recordSummary = dnsResult
+    ? RECORD_TYPES.map(({ type, label }) => ({
+        label,
+        count: dnsResult.records[type].length,
+        records: dnsResult.records[type],
+      }))
+    : [];
+
   return (
     <section
       aria-labelledby="investigation-notes-heading"
@@ -59,19 +55,52 @@ export function InvestigationNotes({
       </header>
 
       <div className="space-y-8">
-        {OBSERVATIONS.map((observation) => (
-          <section key={observation.title}>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
-              {observation.title}
-            </h3>
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
+            DNS Findings
+          </h3>
 
-            <div className="space-y-2 text-sm leading-7">
-              {observation.content.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-          </section>
-        ))}
+          <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 text-sm leading-7">
+            {error ? (
+              <p className="text-amber-300">{error}</p>
+            ) : dnsResult ? (
+              <>
+                <p className="text-zinc-400">
+                  {recordSummary.reduce((total, entry) => total + entry.count, 0)} records retrieved across {recordSummary.length} DNS categories.
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {recordSummary.map((entry) => (
+                    <div key={entry.label}>
+                      <h4 className="mb-2 text-sm font-semibold text-zinc-200">
+                        {entry.label}
+                      </h4>
+
+                      {entry.records.length === 0 ? (
+                        <p className="text-zinc-500">No {entry.label.toLowerCase()} returned.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {entry.records.map((record) => (
+                            <li
+                              key={`${record.type}-${record.name}-${record.data}`}
+                              className="text-zinc-300"
+                            >
+                              {formatRecord(record)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-zinc-500">
+                DNS lookup did not return any records during this investigation.
+              </p>
+            )}
+          </div>
+        </section>
 
         <section className="border-t border-zinc-800 pt-6">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
@@ -80,13 +109,11 @@ export function InvestigationNotes({
 
           <div className="space-y-2 text-sm leading-7">
             <p>
-              Preliminary evidence is sufficient to open a complete
-              infrastructure case file.
+              The DNS lookup provides a technical snapshot of the target’s public infrastructure.
             </p>
 
             <p>
-              Current observations should not be treated as final
-              conclusions.
+              If the lookup returns no records, verify the target domain and repeat the investigation.
             </p>
           </div>
         </section>
