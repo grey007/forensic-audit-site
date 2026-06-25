@@ -2,6 +2,8 @@
 
 import { DomainForm } from "@/components/investigation/DomainForm";
 import { Hero } from "@/components/investigation/Hero";
+import { InvestigationNotes } from "@/components/investigation/InvestigationNotes";
+import { TerminalScanner } from "@/components/investigation/TerminalScanner";
 import { useInvestigation } from "@/hooks/investigation";
 
 export default function HomePage() {
@@ -12,12 +14,25 @@ export default function HomePage() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-12">
         <Hero />
 
-        <DomainForm
-          domain={state.domain}
-          disabled={state.isScanning}
-          onDomainChange={actions.setDomain}
-          onSubmit={actions.startInvestigation}
-        />
+        {state.viewState === "idle" && (
+          <DomainForm
+            domain={state.domain}
+            disabled={state.isScanning}
+            onDomainChange={actions.setDomain}
+            onSubmit={actions.startInvestigation}
+          />
+        )}
+
+        {state.viewState === "scanning" && (
+          <TerminalScanner
+            domain={state.domain}
+            currentCheckpoint={state.currentCheckpoint}
+          />
+        )}
+
+        {state.viewState === "notesRendered" && (
+          <InvestigationNotes domain={state.domain} />
+        )}
       </div>
     </main>
   );

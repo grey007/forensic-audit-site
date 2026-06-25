@@ -1,7 +1,7 @@
 import { OpenCaseButton } from "./OpenCaseButton";
 
 interface InvestigationNotesProps {
-  target: string;
+  domain: string;
 }
 
 const OBSERVATIONS = [
@@ -37,7 +37,7 @@ const OBSERVATIONS = [
 ];
 
 export function InvestigationNotes({
-  target,
+  domain,
 }: InvestigationNotesProps) {
   return (
     <section
@@ -54,7 +54,7 @@ export function InvestigationNotes({
 
         <p className="mt-2 text-sm text-zinc-500">
           Target:{" "}
-          <span className="break-all text-zinc-300">{target}</span>
+          <span className="break-all text-zinc-300">{domain}</span>
         </p>
       </header>
 

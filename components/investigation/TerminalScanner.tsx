@@ -1,5 +1,5 @@
 interface TerminalScannerProps {
-  target: string;
+  domain: string;
   currentCheckpoint: string;
 }
 
@@ -12,7 +12,7 @@ const TERMINAL_LOG = [
 ];
 
 export function TerminalScanner({
-  target,
+  domain,
   currentCheckpoint,
 }: TerminalScannerProps) {
   return (
@@ -30,7 +30,7 @@ export function TerminalScanner({
         <p>
           <span className="text-zinc-500">&gt;</span>{" "}
           <span className="text-zinc-100">Target:</span>{" "}
-          <span className="break-all text-zinc-300">{target}</span>
+          <span className="break-all text-zinc-300">{domain}</span>
         </p>
 
         <p>
